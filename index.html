@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meditation Timer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            background-image: url('background.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: white;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .overlay {
+            height: 100%;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* Popups */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.2);
+            text-align: center;
+            width: 80%;
+            max-width: 400px;
+        }
+
+        .modal button {
+            margin-top: 20px;
+            padding: 10px 30px;
+            font-size: 18px;
+            border: none;
+            border-radius: 25px;
+            background: #fff;
+            color: #333;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Timer Style */
+        #timer {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 60px;
+            font-weight: 700;
+            margin-top: 8vh;
+            letter-spacing: 4px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 40px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.05);
+            text-shadow: 0px 0px 10px rgba(255, 255, 255, 0.3);
+        }
+
+        #text-display {
+            font-size: 32px;
+            min-height: 100px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 1px 1px 5px rgba(0,0,0,0.8);
+            flex-direction: column;
+            font-weight: 500;
+        }
+
+        .poem-line {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        .poem-translation {
+            font-size: 18px;
+            opacity: 0.8;
+        }
+
+        /* Controls Styling */
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 25px;
+            justify-content: center;
+        }
+
+        .btn {
+            color: white;
+            padding: 15px 35px;
+            font-size: 18px;
+            border-radius: 35px;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: transform 0.2s, background 0.2s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:active { transform: scale(0.95); }
+
+        .btn-play { background: rgba(76, 175, 80, 0.35); border: 1px solid rgba(76, 175, 80, 0.5); }
+        .btn-pause { background: rgba(30, 30, 30, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .btn-stop { background: rgba(244, 67, 54, 0.35); border: 1px solid rgba(244, 67, 54, 0.5); }
+
+        /* Jump Buttons Grid */
+        .jump-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .jump-btn {
+            background: rgba(45, 45, 45, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: white;
+            height: 70px;
+            font-size: 24px;
+            border-radius: 14px; 
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            backdrop-filter: blur(5px);
+        }
+
+        .jump-btn:active {
+            background: rgba(70, 70, 70, 0.9);
+            transform: scale(0.95);
+        }
+        
+        #flash-overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 120px;
+            font-weight: bold;
+            display: none;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="audio-bell" src="bell.mp3" preload="auto"></audio>
+    <audio id="audio-low-bell" src="low_bell.mp3" preload="auto"></audio>
+    <audio id="audio-silence" loop playsinline src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"></audio>
+
+    <div id="dnd-modal" class="modal" style="display: flex;">
+        <div class="modal-content">
+            <h2>Please keep your phone in DND (Do Not Disturb)</h2>
+            <button onclick="acceptDND()">OK</button>
+        </div>
+    </div>
+
+    <div id="crash-course-modal" class="modal">
+        <div class="modal-content">
+            <h2>Do the crash course before proceeding</h2>
+            <button onclick="acceptCrashCourse()">OK</button>
+        </div>
+    </div>
+
+    <div class="overlay">
+        <div id="timer">00:00:00</div>
+        
+        <div id="text-display"></div>
+        <div id="flash-overlay"></div>
+
+        <div class="controls">
+            <button class="btn btn-play" onclick="startTimerProcess()">Play</button>
+            <button class="btn btn-pause" onclick="pauseTimer()">Pause</button>
+            <button class="btn btn-stop" onclick="stopTimer()">Stop</button>
+        </div>
+
+        <div class="jump-container">
+            <button class="jump-btn" onclick="jumpToStage(0)">1</button>
+            <button class="jump-btn" onclick="jumpToStage(1)">2</button>
+            <button class="jump-btn" onclick="jumpToStage(2)">3</button>
+            <button class="jump-btn" onclick="jumpToStage(3)">4</button>
+            <button class="jump-btn" onclick="jumpToStage(4)">5</button>
+            <button class="jump-btn" onclick="jumpToStage(5)">ॐ</button>
+            <button class="jump-btn" onclick="jumpToStage(6)">7</button>
+            <button class="jump-btn" onclick="jumpToStage(7)">8</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Variables & Configuration ---
+        let startTime = 0;
+        let elapsedTime = 0;
+        let timerInterval = null; 
+        let isRunning = false;
+        let hasStartedOnce = false;
+        
+        let poemInterval = null;
+        let poemIndex = 0;
+        let wakeLock = null; 
+
+        const uiTimer = document.getElementById('timer');
+        const uiText = document.getElementById('text-display');
+        const uiFlash = document.getElementById('flash-overlay');
+        const audioBell = document.getElementById('audio-bell');
+        const audioLowBell = document.getElementById('audio-low-bell');
+        const audioSilence = document.getElementById('audio-silence'); 
+
+        // Milestone configuration (Updated with exact milliseconds)
+        const milestones = [
+            { id: 1, timeMs: 0,       audio: audioBell, text: "1" },       // 00:00:00
+            { id: 2, timeMs: 135000,  audio: audioBell, text: "2" },       // 00:02:15
+            { id: 3, timeMs: 271000,  audio: audioBell, text: "3" },       // 00:04:31
+            { id: 4, timeMs: 408000,  audio: audioBell, text: "4" },       // 00:06:48
+            { id: 5, timeMs: 898000,  audio: audioBell, text: "5" },       // 00:14:58
+            { id: 6, timeMs: 1400000, audio: audioLowBell, text: "ॐ" },    // 00:23:20
+            { id: 7, timeMs: 1740000, audio: audioBell, text: "7" },       // 00:29:00
+            { id: 8, timeMs: 2045000, audio: audioBell, text: "8" },       // 00:34:05
+            { id: 9, timeMs: 2401000, audio: audioLowBell, text: "POEM" }  // 00:40:01
+        ];
+
+        let currentMilestoneIndex = -1;
+
+        const poemLines = [
+            { line: "Jananam Sukhadam", trans: "(Birth is joyful)" },
+            { line: "Maranam Karunam", trans: "(death is compassion)" },
+            { line: "Milanam Madhuram", trans: "(Meeting is sweet)" },
+            { line: "Smaranam Karunam", trans: "(remembering is compassion)" },
+            { line: "Kalavashadiha", trans: "(In the inevitable flow of time)" },
+            { line: "Sakalam Karunam", trans: "(everything turns into compassion)" },
+            { line: "Samyadhipateh", trans: "(In the kingdom of the Lord of Time)" },
+            { line: "Akhilam Karunam", trans: "(the entirety is compassion)" }
+        ];
+
+        // --- Wake Lock Functions ---
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    document.addEventListener('visibilitychange', async () => {
+                        if (wakeLock !== null && document.visibilityState === 'visible') {
+                            wakeLock = await navigator.wakeLock.request('screen');
+                        }
+                    });
+                }
+            } catch (err) {
+                console.log(`Wake Lock error: ${err.message}`);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => {
+                    wakeLock = null;
+                });
+            }
+        }
+
+        // --- Popups ---
+        function acceptDND() {
+            document.getElementById('dnd-modal').style.display = 'none';
+            document.getElementById('crash-course-modal').style.display = 'flex';
+        }
+
+        function acceptCrashCourse() {
+            document.getElementById('crash-course-modal').style.display = 'none';
+        }
+
+        // --- Core Timer Functions ---
+        function formatTime(ms) {
+            let totalSeconds = Math.floor(ms / 1000);
+            let hours = Math.floor(totalSeconds / 3600);
+            let minutes = Math.floor((totalSeconds % 3600) / 60);
+            let seconds = totalSeconds % 60;
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateDisplay() {
+            uiTimer.innerText = formatTime(elapsedTime);
+            checkMilestones(elapsedTime);
+        }
+
+        function tick() {
+            if (!isRunning) return;
+            const now = Date.now();
+            elapsedTime = now - startTime;
+            updateDisplay();
+        }
+
+        function safeUnlockAudio(audioEl) {
+            // Unlocks audio context securely for strict mobile browsers
+            audioEl.muted = true;
+            audioEl.play().then(() => {
+                audioEl.pause();
+                audioEl.currentTime = 0;
+                audioEl.muted = false;
+            }).catch(e => console.log("Audio prep blocked"));
+        }
+
+        function startTimerProcess() {
+            if (isRunning) return;
+
+            // Unlock audio IMMEDIATELY on the first user interaction (Play button click)
+            if (!hasStartedOnce) {
+                safeUnlockAudio(audioBell);
+                safeUnlockAudio(audioLowBell);
+                audioSilence.play().catch(e => console.log("Silent audio blocked"));
+            }
+
+            if (elapsedTime === 0 && !hasStartedOnce) {
+                let flashCount = 1;
+                uiFlash.style.display = 'block';
+                uiText.style.display = 'none';
+                uiFlash.innerText = flashCount;
+
+                let flashInterval = setInterval(() => {
+                    flashCount++;
+                    if (flashCount <= 3) {
+                        uiFlash.innerText = flashCount;
+                    } else {
+                        clearInterval(flashInterval);
+                        uiFlash.style.display = 'none';
+                        uiText.style.display = 'flex';
+                        hasStartedOnce = true;
+                        executePlay();
+                    }
+                }, 1000);
+            } else {
+                executePlay();
+            }
+        }
+
+        function executePlay() {
+            isRunning = true;
+            startTime = Date.now() - elapsedTime;
+            
+            // 1. Keep screen on (if user leaves it unlocked)
+            requestWakeLock();
+            
+            // 2. Play the silent audio loop to keep JS running in the background
+            audioSilence.play().catch(e => console.log("Silent audio blocked"));
+
+            // 3. Force regular checks using setInterval instead of requestAnimationFrame
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(tick, 250); // Checks the time 4 times a second
+            
+            tick(); // Fire immediately
+        }
+
+        function pauseTimer() {
+            isRunning = false;
+            if (timerInterval) clearInterval(timerInterval);
+            
+            releaseWakeLock();
+            audioSilence.pause();
+        }
+
+        function stopTimer() {
+            isRunning = false;
+            if (timerInterval) clearInterval(timerInterval);
+            
+            elapsedTime = 0;
+            currentMilestoneIndex = -1;
+            hasStartedOnce = false;
+            uiText.innerHTML = "";
+            stopPoem();
+            updateDisplay();
+            
+            releaseWakeLock();
+            audioSilence.pause();
+            audioSilence.currentTime = 0;
+        }
+
+        // --- Milestones & Events ---
+        function playAudio(audioElement) {
+            audioElement.currentTime = 0;
+            audioElement.play().catch(err => console.log("Audio play blocked by browser."));
+        }
+
+        function checkMilestones(ms) {
+            let passedIndex = -1;
+            
+            // Check against exact milliseconds now
+            for (let i = 0; i < milestones.length; i++) {
+                if (ms >= milestones[i].timeMs) {
+                    passedIndex = i;
+                }
+            }
+
+            if (passedIndex > currentMilestoneIndex) {
+                currentMilestoneIndex = passedIndex;
+                triggerMilestone(milestones[passedIndex]);
+            }
+        }
+
+        function triggerMilestone(milestone) {
+            playAudio(milestone.audio);
+            
+            if (milestone.text === "POEM") {
+                startPoem();
+            } else {
+                stopPoem();
+                uiText.innerHTML = milestone.text;
+            }
+        }
+
+        // --- Jump Feature ---
+        function jumpToStage(index) {
+            if (index < 0 || index >= milestones.length - 1) return;
+            
+            // Fetch exact milliseconds from the new array
+            let targetMs = milestones[index].timeMs; 
+            
+            elapsedTime = targetMs;
+            currentMilestoneIndex = index - 1;
+            
+            if (!isRunning) {
+                hasStartedOnce = true; 
+                executePlay();
+            } else {
+                startTime = Date.now() - elapsedTime;
+            }
+        }
+
+        // --- Poem Logic at 40 Mins ---
+        function startPoem() {
+            poemIndex = 0;
+            showNextPoemLine();
+            if(poemInterval) clearInterval(poemInterval);
+            
+            poemInterval = setInterval(() => {
+                poemIndex++;
+                
+                // Stop looping the poem when we reach the end and show the completion message.
+                if (poemIndex >= poemLines.length) {
+                    clearInterval(poemInterval);
+                    poemInterval = null;
+                    
+                    // Show final completion message
+                    uiText.innerHTML = `
+                        <div class="poem-line" style="font-size: 32px; font-weight: bold;">Meditation Completed</div>
+                        <div class="poem-line" style="font-size: 55px; margin-top: 15px;">ॐ</div>
+                    `;
+                } else {
+                    showNextPoemLine();
+                }
+            }, 5000);
+        }
+
+        function showNextPoemLine() {
+            let p = poemLines[poemIndex];
+            uiText.innerHTML = `
+                <div class="poem-line">${p.line}</div>
+                <div class="poem-translation">${p.trans}</div>
+            `;
+        }
+
+        function stopPoem() {
+            if (poemInterval) {
+                clearInterval(poemInterval);
+                poemInterval = null;
+            }
+        }
+
+        // Init
+        updateDisplay();
+    </script>
+</body>
+</html>
